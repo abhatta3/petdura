@@ -16,4 +16,128 @@ STOPWORDS = {
 
 
 class CatalogError(Exception):
-    """Raised when there is an
+    """Raised when there is an issue accessing or querying the catalog."""
+
+
+class PetServiceCatalog:
+    def __init__(self, catalog_path):
+        self.catalog_path = Path(catalog_path)
+
+    def _get_connection(self):
+        return duckdb.connect(":memory:")
+
+    def summary(self):
+        if not self.catalog_path.exists():
+            raise CatalogError(f"Catalog file does not exist: {self.catalog_path}")
+
+        conn = self._get_connection()
+        try:
+            parquet_str = str(self.catalog_path)
+            res = conn.execute(
+                f"""
+                SELECT
+                    count(*) AS listing_count,
+                    count(DISTINCT zip_code) AS zip_count,
+                    count(DISTINCT service_type) AS service_type_count
+                FROM read_parquet(?)
+                """,
+                [parquet_str],
+            ).fetchone()
+            return {
+                "listing_count": res[0] if res else 0,
+                "zip_count": res[1] if res else 0,
+                "service_type_count": res[2] if res else 0,
+            }
+        except Exception as exc:
+            raise CatalogError(f"Failed to read catalog summary: {exc}") from exc
+        finally:
+            conn.close()
+
+    def search(self, zip_code, description="", limit=500):
+        if not ZIP_RE.match(zip_code):
+            raise ValueError(f"Invalid ZIP code format: {zip_code}")
+
+        if not self.catalog_path.exists():
+            raise CatalogError(f"Catalog file does not exist: {self.catalog_path}")
+
+        tokens = [
+            tok
+            for tok in TOKEN_RE.findall(description.lower())
+            if tok not in STOPWORDS
+        ]
+
+        conn = self._get_connection()
+        try:
+            parquet_str = str(self.catalog_path)
+            if not tokens:
+                query = """
+                    SELECT *
+                    FROM read_parquet(?)
+                    WHERE zip_code = ?
+                    LIMIT ?
+                """
+                df = conn.execute(query, [parquet_str, zip_code, limit]).fetchdf()
+            else:
+                like_clauses = " OR ".join(["search_text LIKE ?" for _ in tokens])
+                params = [parquet_str, zip_code] + [f"%{tok}%" for tok in tokens] + [limit]
+                query = f"""
+                    SELECT *
+                    FROM read_parquet(?)
+                    WHERE zip_code = ? AND ({like_clauses})
+                    LIMIT ?
+                """
+                df = conn.execute(query, params).fetchdf()
+
+            return df.to_dict(orient="records")
+        except Exception as exc:
+            raise CatalogError(f"Search query failed: {exc}") from exc
+        finally:
+            conn.close()
+
+    def ingest_batch(self, records):
+        if not isinstance(records, list) or not records:
+            raise ValueError("Records must be a non-empty list of dictionaries.")
+
+        for i, item in enumerate(records):
+            if not isinstance(item, dict):
+                raise ValueError(f"Record at index {i} must be a dictionary.")
+            if "zip_code" not in item or not ZIP_RE.match(str(item["zip_code"])):
+                raise ValueError(f"Record at index {i} must have a valid 5-digit zip_code.")
+
+        conn = self._get_connection()
+        try:
+            self.catalog_path.parent.mkdir(parents=True, exist_ok=True)
+            new_df = duckdb.arrow.pa.Table.from_pylist(records)
+            conn.register("incoming_records", new_df)
+
+            with tempfile.NamedTemporaryFile(
+                dir=self.catalog_path.parent, suffix=".parquet", delete=False
+            ) as tmp_file:
+                temp_output_path = tmp_file.name
+
+            if self.catalog_path.exists():
+                parquet_str = str(self.catalog_path)
+                conn.execute(
+                    f"""
+                    COPY (
+                        SELECT * FROM read_parquet(?)
+                        UNION ALL
+                        SELECT * FROM incoming_records
+                    ) TO ? (FORMAT PARQUET)
+                    """,
+                    [parquet_str, temp_output_path],
+                )
+            else:
+                conn.execute(
+                    """
+                    COPY (SELECT * FROM incoming_records) TO ? (FORMAT PARQUET)
+                    """,
+                    [temp_output_path],
+                )
+
+            os.replace(temp_output_path, self.catalog_path)
+            return len(records)
+        except Exception as exc:
+            raise CatalogError(f"Batch ingestion failed: {exc}") from exc
+        finally:
+            conn.close()

@@ -15,4 +15,5 @@ STOPWORDS = {
 }
 
 
-class Catalog
+class CatalogError(Exception):
+    """Raised when there is an

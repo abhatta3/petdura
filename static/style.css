@@ -278,6 +278,29 @@ h1 {
 }
 
 .result-card h3 { margin: 8px 0 2px; font-size: 1.05rem; }
+
+.provider-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0 2px;
+}
+
+.provider-row h3 { margin: 0; }
+
+.contact-link {
+  flex: 0 0 auto;
+  color: var(--green);
+  font-size: 0.78rem;
+  font-weight: 750;
+  white-space: nowrap;
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+  transition: border-color 0.15s;
+}
+
+.contact-link:hover { border-bottom-color: var(--green); }
 .result-card p { line-height: 1.45; }
 .location { margin: 0; }
 

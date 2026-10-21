@@ -192,14 +192,16 @@ function renderCard(row) {
           <span class="service-pill">${escapeHtml(row.service_type)}</span>
           <span class="source">${escapeHtml(row.source)}</span>
         </div>
-        <h3>${escapeHtml(row.provider_name)}</h3>
+        <div class="provider-row">
+          <h3>${escapeHtml(row.provider_name)}</h3>
+          ${profileLink ? `<a class="contact-link" href="${escapeAttr(row.profile_url)}" target="_blank" rel="noopener noreferrer">Contact</a>` : ""}
+        </div>
         <p class="location">${escapeHtml(row.city)}, ${escapeHtml(row.state)} ${escapeHtml(row.zip_code)}</p>
       </div>
       <div class="card-body">
         <p class="result-description">${escapeHtml(row.description || "No description provided.")}</p>
         <div class="expanded-details">
           <p class="pet-types">Pets: ${escapeHtml(row.pet_types || "Not listed")}</p>
-          ${profileLink ? `<div class="profile">${profileLink}</div>` : ""}
         </div>
       </div>
       <div class="card-footer">

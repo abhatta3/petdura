@@ -53,7 +53,8 @@ class PetServiceCatalog:
         finally:
             conn.close()
 
-    def service_types(self):        if not self.catalog_path.exists():
+    def service_types(self):
+        if not self.catalog_path.exists():
             raise CatalogError(f"Catalog file does not exist: {self.catalog_path}")
 
         conn = self._get_connection()

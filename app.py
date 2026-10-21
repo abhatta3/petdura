@@ -79,6 +79,7 @@ def create_app(catalog_path=None):
             finally:
                 conn.close()
             summary["service_types"] = service_catalog.service_types()
+            summary["sources"] = service_catalog.sources()
             return jsonify(json_safe(summary))
         except CatalogError as exc:
             return jsonify({"error": str(exc)}), 503
@@ -89,6 +90,7 @@ def create_app(catalog_path=None):
         zip_code = str(payload.get("zip_code", "")).strip()
         description = str(payload.get("description", "")).strip()
         service_type = str(payload.get("service_type", "")).strip()
+        source = str(payload.get("source", "")).strip()
         max_price_raw = payload.get("max_price")
 
         max_price = None
@@ -107,6 +109,7 @@ def create_app(catalog_path=None):
                 limit=application.config["SEARCH_RESULT_LIMIT"],
                 service_type=service_type or None,
                 max_price=max_price,
+                source=source or None,
             )
         except ValueError as exc:
             return jsonify({"error": str(exc), "results": []}), 400

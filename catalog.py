@@ -95,7 +95,23 @@ class PetServiceCatalog:
         finally:
             conn.close()
 
-    def search(self, zip_code, description="", limit=500, service_type=None, max_price=None):
+    def sources(self):
+        if not self.catalog_path.exists():
+            raise CatalogError(f"Catalog file does not exist: {self.catalog_path}")
+        conn = self._get_connection()
+        try:
+            parquet_str = str(self.catalog_path)
+            rows = conn.execute(
+                "SELECT DISTINCT source FROM read_parquet(?) WHERE source IS NOT NULL AND source <> '' ORDER BY source",
+                [parquet_str],
+            ).fetchall()
+            return [row[0] for row in rows]
+        except Exception as exc:
+            raise CatalogError(f"Failed to read sources: {exc}") from exc
+        finally:
+            conn.close()
+
+    def search(self, zip_code, description="", limit=500, service_type=None, max_price=None, source=None):
         if not ZIP_RE.match(zip_code):
             raise ValueError(f"Invalid ZIP code format: {zip_code}")
 
@@ -114,6 +130,10 @@ class PetServiceCatalog:
         if service_type:
             conditions.append("service_type = ?")
             params.append(service_type)
+
+        if source:
+            conditions.append("source = ?")
+            params.append(source)
 
         if max_price is not None:
             conditions.append("(price_usd IS NULL OR price_usd <= ?)")

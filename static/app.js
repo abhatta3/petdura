@@ -7,6 +7,7 @@ const searchBtn = document.getElementById("search-btn");
 const catalogSummary = document.getElementById("catalog-summary");
 const controlsPanel = document.getElementById("controls-panel");
 const serviceFilter = document.getElementById("service-filter");
+const sourceFilter = document.getElementById("source-filter");
 const sortBy = document.getElementById("sort-by");
 const resultsPanel = document.getElementById("results-panel");
 const resultsTitle = document.getElementById("results-title");
@@ -23,6 +24,7 @@ const zipLimitSelect = document.getElementById("zip-limit-select");
 
 searchForm.addEventListener("submit", runSearch);
 serviceFilter.addEventListener("change", runSearch);
+sourceFilter.addEventListener("change", runSearch);
 sortBy.addEventListener("change", renderResults);
 zipLimitSelect.addEventListener("change", renderZipTable);
 
@@ -54,6 +56,7 @@ async function loadCatalogSummary() {
     catalogData = data;
     catalogSummary.textContent = `${data.listing_count} listings across ${data.zip_count} ZIP codes.`;
     buildServiceFilter(data.service_types || []);
+    buildSourceFilter(data.sources || []);
     renderZipTable();
   } catch (error) {
     catalogSummary.textContent = error.message;
@@ -67,6 +70,15 @@ function buildServiceFilter(services) {
     `<option value="${escapeAttr(service)}">${escapeHtml(service)}</option>`
   ).join("");
   if (sorted.includes(current)) serviceFilter.value = current;
+}
+
+function buildSourceFilter(sources) {
+  const current = sourceFilter.value;
+  const sorted = [...new Set(sources)].sort();
+  sourceFilter.innerHTML = '<option value="">All sources</option>' + sorted.map(source =>
+    `<option value="${escapeAttr(source)}">${escapeHtml(source)}</option>`
+  ).join("");
+  if (sorted.includes(current)) sourceFilter.value = current;
 }
 
 function renderZipTable() {
@@ -95,6 +107,7 @@ function renderZipTable() {
 window.searchZip = function(zipCode) {
   zipInput.value = zipCode;
   serviceFilter.value = "";
+  sourceFilter.value = "";
   sortBy.value = "relevance";
   switchTab("search");
   runSearch();
@@ -106,6 +119,7 @@ async function runSearch(event) {
 
   const zipCode = zipInput.value.trim();
   const serviceType = serviceFilter.value.trim();
+  const source = sourceFilter.value.trim();
 
   searchBtn.disabled = true;
   statusMessage.textContent = "Searching the local catalog…";
@@ -113,6 +127,7 @@ async function runSearch(event) {
   try {
     const payload = { zip_code: zipCode };
     if (serviceType) payload.service_type = serviceType;
+    if (source) payload.source = source;
 
     const response = await fetch("/api/search", {
       method: "POST",
@@ -123,14 +138,14 @@ async function runSearch(event) {
     if (!response.ok) throw new Error(data.error || "Search failed");
 
     allResults = data.results || [];
-    resultsTitle.textContent = serviceType
-      ? `${serviceType} in ${zipCode}`
-      : `Services in ${zipCode}`;
+    const sourceLabel = source ? ` from ${source}` : "";
+    const serviceLabel = serviceType ? `${serviceType} ` : "";
+    resultsTitle.textContent = `${serviceLabel}in ${zipCode}${sourceLabel}`;
     controlsPanel.classList.remove("hidden");
     renderResults();
     statusMessage.textContent = allResults.length
       ? ""
-      : `No listings matched ${zipCode}${serviceType ? " for " + serviceType : ""}.`;
+      : `No listings matched ${zipCode}${serviceType ? " for " + serviceType : ""}${source ? " from " + source : ""}.`;
   } catch (error) {
     allResults = [];
     controlsPanel.classList.add("hidden");

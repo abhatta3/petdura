@@ -53,7 +53,29 @@ class PetServiceCatalog:
         finally:
             conn.close()
 
-    def search(self, zip_code, description="", limit=500):
+    def service_types(self):
+        if not self.catalog_path.exists():
+            raise CatalogError(f"Catalog file does not exist: {self.catalog_path}")
+
+        conn = self._get_connection()
+        try:
+            parquet_str = str(self.catalog_path)
+            rows = conn.execute(
+                """
+                SELECT DISTINCT service_type
+                FROM read_parquet(?)
+                WHERE service_type IS NOT NULL AND service_type <> ''
+                ORDER BY service_type
+                """,
+                [parquet_str],
+            ).fetchall()
+            return [row[0] for row in rows]
+        except Exception as exc:
+            raise CatalogError(f"Failed to read service types: {exc}") from exc
+        finally:
+            conn.close()
+
+    def search(self, zip_code, description="", limit=500, service_type=None, max_price=None):
         if not ZIP_RE.match(zip_code):
             raise ValueError(f"Invalid ZIP code format: {zip_code}")
 
@@ -66,28 +88,32 @@ class PetServiceCatalog:
             if tok not in STOPWORDS
         ]
 
+        conditions = ["zip_code = ?"]
+        params = [str(self.catalog_path), zip_code]
+
+        if service_type:
+            conditions.append("service_type = ?")
+            params.append(service_type)
+
+        if max_price is not None:
+            conditions.append("(price_usd IS NULL OR price_usd <= ?)")
+            params.append(float(max_price))
+
+        if tokens:
+            conditions.append("(" + " OR ".join(["search_text LIKE ?" for _ in tokens]) + ")")
+            params.extend(f"%{tok}%" for tok in tokens)
+
+        query = f"""
+            SELECT *
+            FROM read_parquet(?)
+            WHERE {" AND ".join(conditions)}
+            LIMIT ?
+        """
+        params.append(limit)
+
         conn = self._get_connection()
         try:
-            parquet_str = str(self.catalog_path)
-            if not tokens:
-                query = """
-                    SELECT *
-                    FROM read_parquet(?)
-                    WHERE zip_code = ?
-                    LIMIT ?
-                """
-                df = conn.execute(query, [parquet_str, zip_code, limit]).fetchdf()
-            else:
-                like_clauses = " OR ".join(["search_text LIKE ?" for _ in tokens])
-                params = [parquet_str, zip_code] + [f"%{tok}%" for tok in tokens] + [limit]
-                query = f"""
-                    SELECT *
-                    FROM read_parquet(?)
-                    WHERE zip_code = ? AND ({like_clauses})
-                    LIMIT ?
-                """
-                df = conn.execute(query, params).fetchdf()
-
+            df = conn.execute(query, params).fetchdf()
             return df.to_dict(orient="records")
         except Exception as exc:
             raise CatalogError(f"Search query failed: {exc}") from exc

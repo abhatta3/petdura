@@ -78,6 +78,7 @@ def create_app(catalog_path=None):
                 summary["zip_codes"] = df.to_dict(orient="records")
             finally:
                 conn.close()
+            summary["service_types"] = service_catalog.service_types()
             return jsonify(summary)
         except CatalogError as exc:
             return jsonify({"error": str(exc)}), 503
@@ -87,12 +88,25 @@ def create_app(catalog_path=None):
         payload = request.get_json(force=True, silent=True) or {}
         zip_code = str(payload.get("zip_code", "")).strip()
         description = str(payload.get("description", "")).strip()
+        service_type = str(payload.get("service_type", "")).strip()
+        max_price_raw = payload.get("max_price")
+
+        max_price = None
+        if max_price_raw not in (None, ""):
+            try:
+                max_price = float(max_price_raw)
+            except (TypeError, ValueError):
+                return jsonify({"error": "Maximum rate must be a number", "results": []}), 400
+            if max_price < 0:
+                return jsonify({"error": "Maximum rate cannot be negative", "results": []}), 400
 
         try:
             results = service_catalog.search(
                 zip_code,
                 description,
                 limit=application.config["SEARCH_RESULT_LIMIT"],
+                service_type=service_type or None,
+                max_price=max_price,
             )
         except ValueError as exc:
             return jsonify({"error": str(exc), "results": []}), 400
@@ -101,7 +115,12 @@ def create_app(catalog_path=None):
 
         return jsonify(
             {
-                "query": {"zip_code": zip_code, "description": description},
+                "query": {
+                    "zip_code": zip_code,
+                    "description": description,
+                    "service_type": service_type or None,
+                    "max_price": max_price,
+                },
                 "count": len(results),
                 "results": results,
             }

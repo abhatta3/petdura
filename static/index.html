@@ -30,50 +30,48 @@
     </nav>
 
     <div id="view-search" class="tab-content">
-    <form id="search-form" class="search-card">
-      <label for="zip-input">ZIP code</label>
-      <input id="zip-input" name="zip_code" type="text" inputmode="numeric"
-        pattern="[0-9]{5}" maxlength="5" autocomplete="postal-code"
-        placeholder="92694" value="92694" required>
+      <form id="search-form" class="search-card">
+        <label for="zip-input">ZIP code</label>
+        <input id="zip-input" name="zip_code" type="text" inputmode="numeric"
+          pattern="[0-9]{5}" maxlength="5" autocomplete="postal-code"
+          placeholder="92694" value="92694" required>
 
-      <label for="description-input">What does your pet need? <span>Optional</span></label>
-      <textarea id="description-input" name="description" rows="3"
-        placeholder="e.g. dog walk"></textarea>
-
-      <button id="search-btn" type="submit">Search services</button>
-      <p id="catalog-summary" class="catalog-summary"></p>
-    </form>
-
-    <section id="controls-panel" class="panel hidden">
-      <div class="panel-heading">
-        <div>
-          <p class="eyebrow">RESULTS</p>
-          <h2 id="results-title">Services</h2>
+        <div class="filters">
+          <label class="filter-field" for="service-filter">Service
+            <select id="service-filter"><option value="">All services</option></select>
+          </label>
+          <label class="filter-field" for="max-price-filter">Max rate
+            <input id="max-price-filter" type="number" min="0" step="1" placeholder="No limit">
+          </label>
+          <label class="filter-field" for="sort-by">Sort by
+            <select id="sort-by">
+              <option value="relevance">Best match</option>
+              <option value="rating">Highest rated</option>
+              <option value="reviews">Most reviewed</option>
+              <option value="price">Lowest price</option>
+              <option value="provider">Provider name</option>
+            </select>
+          </label>
         </div>
-        <p id="results-count"></p>
-      </div>
 
-      <div class="controls">
-        <label for="service-filter">Service
-          <select id="service-filter"><option value="">All services</option></select>
-        </label>
-        <label for="max-price-filter">Maximum rate
-          <input id="max-price-filter" type="number" min="0" step="1" placeholder="No limit">
-        </label>
-        <label for="sort-by">Sort
-          <select id="sort-by">
-            <option value="relevance">Best match</option>
-            <option value="rating">Highest rated</option>
-            <option value="reviews">Most reviewed</option>
-            <option value="price">Lowest price</option>
-            <option value="provider">Provider name</option>
-          </select>
-        </label>
-      </div>
-    </section>
+        <div class="form-actions">
+          <button id="search-btn" type="submit">Search services</button>
+          <p id="catalog-summary" class="catalog-summary"></p>
+        </div>
+      </form>
 
-    <section id="results-panel" class="results-grid" aria-live="polite"></section>
-    <p id="status-message" role="status"></p>
+      <section id="controls-panel" class="panel hidden">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">RESULTS</p>
+            <h2 id="results-title">Services</h2>
+          </div>
+          <p id="results-count"></p>
+        </div>
+      </section>
+
+      <section id="results-panel" class="results-grid" aria-live="polite"></section>
+      <p id="status-message" role="status"></p>
     </div>
 
     <div id="view-zips" class="tab-content hidden">

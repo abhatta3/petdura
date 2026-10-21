@@ -1,9 +1,9 @@
 let allResults = [];
 let catalogData = null;
+let priceDebounce = null;
 
 const searchForm = document.getElementById("search-form");
 const zipInput = document.getElementById("zip-input");
-const descriptionInput = document.getElementById("description-input");
 const searchBtn = document.getElementById("search-btn");
 const catalogSummary = document.getElementById("catalog-summary");
 const controlsPanel = document.getElementById("controls-panel");
@@ -24,9 +24,12 @@ const zipCountBadge = document.getElementById("zip-count-badge");
 const zipLimitSelect = document.getElementById("zip-limit-select");
 
 searchForm.addEventListener("submit", runSearch);
-serviceFilter.addEventListener("change", renderFilteredResults);
-maxPriceFilter.addEventListener("input", renderFilteredResults);
-sortBy.addEventListener("change", renderFilteredResults);
+serviceFilter.addEventListener("change", () => runSearch());
+maxPriceFilter.addEventListener("input", () => {
+  clearTimeout(priceDebounce);
+  priceDebounce = setTimeout(() => runSearch(), 350);
+});
+sortBy.addEventListener("change", renderResults);
 zipLimitSelect.addEventListener("change", renderZipTable);
 
 tabSearch.addEventListener("click", () => switchTab("search"));
@@ -55,28 +58,33 @@ async function loadCatalogSummary() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Catalog is unavailable");
     catalogData = data;
-    catalogSummary.textContent = `${data.listing_count} service listings across ${data.zip_count} ZIP codes in this catalog.`;
+    catalogSummary.textContent = `${data.listing_count} listings across ${data.zip_count} ZIP codes.`;
+    buildServiceFilter(data.service_types || []);
     renderZipTable();
   } catch (error) {
     catalogSummary.textContent = error.message;
   }
 }
 
+function buildServiceFilter(services) {
+  const current = serviceFilter.value;
+  const sorted = [...new Set(services)].sort();
+  serviceFilter.innerHTML = '<option value="">All services</option>' + sorted.map(service =>
+    `<option value="${escapeAttr(service)}">${escapeHtml(service)}</option>`
+  ).join("");
+  if (sorted.includes(current)) serviceFilter.value = current;
+}
+
 function renderZipTable() {
   if (!catalogData || !catalogData.zip_codes) return;
   let zips = [...catalogData.zip_codes];
-  
-  // Sort by zip code ascending
   zips.sort((a, b) => String(a.zip_code).localeCompare(String(b.zip_code)));
-
   const limitVal = zipLimitSelect.value;
   const totalCount = zips.length;
-
   if (limitVal !== "all") {
     const limitNum = parseInt(limitVal, 10) || 100;
     zips = zips.slice(0, limitNum);
   }
-
   zipCountBadge.textContent = `Showing ${zips.length} of ${totalCount} ZIP codes`;
   zipTbody.innerHTML = zips.map(row => `
     <tr>
@@ -92,39 +100,46 @@ function renderZipTable() {
 
 window.searchZip = function(zipCode) {
   zipInput.value = zipCode;
-  descriptionInput.value = "";
+  serviceFilter.value = "";
+  maxPriceFilter.value = "";
+  sortBy.value = "relevance";
   switchTab("search");
-  searchForm.dispatchEvent(new Event("submit"));
+  runSearch();
 };
 
 async function runSearch(event) {
-  event.preventDefault();
+  if (event) event.preventDefault();
   if (!searchForm.reportValidity()) return;
 
   const zipCode = zipInput.value.trim();
-  const description = descriptionInput.value.trim();
+  const serviceType = serviceFilter.value.trim();
+  const maxPriceRaw = maxPriceFilter.value.trim();
+
   searchBtn.disabled = true;
   statusMessage.textContent = "Searching the local catalog…";
 
   try {
+    const payload = { zip_code: zipCode };
+    if (serviceType) payload.service_type = serviceType;
+    if (maxPriceRaw !== "") payload.max_price = maxPriceRaw;
+
     const response = await fetch("/api/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ zip_code: zipCode, description }),
+      body: JSON.stringify(payload),
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Search failed");
 
     allResults = data.results || [];
-    buildServiceFilter(allResults);
-    resultsTitle.textContent = description
-      ? `Matches in ${zipCode}`
-      : `All services in ${zipCode}`;
+    resultsTitle.textContent = serviceType
+      ? `${serviceType} in ${zipCode}`
+      : `Services in ${zipCode}`;
     controlsPanel.classList.remove("hidden");
-    renderFilteredResults();
+    renderResults();
     statusMessage.textContent = allResults.length
       ? ""
-      : `No catalog entries matched ${zipCode}${description ? " and that description" : ""}.`;
+      : `No listings matched ${zipCode}${serviceType ? " for " + serviceType : ""}.`;
   } catch (error) {
     allResults = [];
     controlsPanel.classList.add("hidden");
@@ -135,28 +150,11 @@ async function runSearch(event) {
   }
 }
 
-function buildServiceFilter(results) {
-  const current = serviceFilter.value;
-  const services = [...new Set(results.map(row => row.service_type))].sort();
-  serviceFilter.innerHTML = `<option value="">All services</option>${services.map(service =>
-    `<option value="${escapeAttr(service)}">${escapeHtml(service)}</option>`
-  ).join("")}`;
-  if (services.includes(current)) serviceFilter.value = current;
-}
-
-function renderFilteredResults() {
-  const selectedService = serviceFilter.value;
-  const maximumRate = maxPriceFilter.value === "" ? null : Number(maxPriceFilter.value);
-  const selectedSort = sortBy.value;
-
-  const filtered = allResults.filter(row =>
-    (!selectedService || row.service_type === selectedService) &&
-    (maximumRate === null || row.price_usd === null || row.price_usd <= maximumRate)
-  );
-
-  filtered.sort((a, b) => compareRows(a, b, selectedSort));
-  resultsCount.textContent = `${filtered.length} of ${allResults.length}`;
-  resultsPanel.innerHTML = filtered.map(renderCard).join("");
+function renderResults() {
+  const sorted = [...allResults];
+  sorted.sort((a, b) => compareRows(a, b, sortBy.value));
+  resultsCount.textContent = `${sorted.length} ${sorted.length === 1 ? "listing" : "listings"}`;
+  resultsPanel.innerHTML = sorted.map(renderCard).join("");
 }
 
 function compareRows(a, b, sort) {
@@ -164,8 +162,7 @@ function compareRows(a, b, sort) {
   if (sort === "reviews") return numberDescending(a.review_count, b.review_count);
   if (sort === "price") return numberAscending(a.price_usd, b.price_usd);
   if (sort === "provider") return a.provider_name.localeCompare(b.provider_name);
-  return numberDescending(a.relevance, b.relevance) ||
-    numberDescending(a.rating, b.rating) ||
+  return numberDescending(a.rating, b.rating) ||
     numberDescending(a.review_count, b.review_count);
 }
 

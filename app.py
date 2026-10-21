@@ -3,7 +3,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
 
-from catalog import CatalogError, PetServiceCatalog
+from catalog import CatalogError, PetServiceCatalog, json_safe
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -79,7 +79,7 @@ def create_app(catalog_path=None):
             finally:
                 conn.close()
             summary["service_types"] = service_catalog.service_types()
-            return jsonify(summary)
+            return jsonify(json_safe(summary))
         except CatalogError as exc:
             return jsonify({"error": str(exc)}), 503
 
@@ -113,18 +113,17 @@ def create_app(catalog_path=None):
         except CatalogError as exc:
             return jsonify({"error": str(exc), "results": []}), 503
 
-        return jsonify(
-            {
-                "query": {
-                    "zip_code": zip_code,
-                    "description": description,
-                    "service_type": service_type or None,
-                    "max_price": max_price,
-                },
-                "count": len(results),
-                "results": results,
-            }
-        )
+        response_payload = {
+            "query": {
+                "zip_code": zip_code,
+                "description": description,
+                "service_type": service_type or None,
+                "max_price": max_price,
+            },
+            "count": len(results),
+            "results": results,
+        }
+        return jsonify(json_safe(response_payload))
 
     return application
 

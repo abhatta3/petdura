@@ -1,4 +1,5 @@
 import datetime
+import math
 import os
 import re
 import tempfile
@@ -13,6 +14,25 @@ STOPWORDS = {
     "a", "an", "and", "are", "for", "i", "in", "is", "my", "need",
     "of", "on", "or", "the", "to", "with",
 }
+
+
+def json_safe(value):
+    """Convert NaN/Infinity floats to None so payloads stay valid JSON.
+
+    Python's json module happily emits ``NaN``/``Infinity`` literals, but those
+    are not valid JSON and break ``JSON.parse`` in the browser. DuckDB can also
+    surface NaN values coming from imperfect source data, so every record that
+    leaves the catalog is normalized here.
+    """
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+        return value
+    if isinstance(value, dict):
+        return {key: json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(item) for item in value]
+    return value
 
 
 class CatalogError(Exception):
@@ -114,7 +134,8 @@ class PetServiceCatalog:
         conn = self._get_connection()
         try:
             df = conn.execute(query, params).fetchdf()
-            return df.to_dict(orient="records")
+            results = df.to_dict(orient="records")
+            return json_safe(results)
         except Exception as exc:
             raise CatalogError(f"Search query failed: {exc}") from exc
         finally:

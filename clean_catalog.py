@@ -13,6 +13,7 @@ Usage:
 """
 import argparse
 import csv
+import math
 import re
 from pathlib import Path
 
@@ -50,7 +51,7 @@ def clean(rows, columns):
             price = round(float(price), 2) if price is not None and str(price).strip() != "" else None
         except (TypeError, ValueError):
             price = None
-        if price is not None and price < 0:
+        if price is not None and (price < 0 or math.isnan(price) or math.isinf(price)):
             price = None
         rating = row.get("rating")
         try:
@@ -58,11 +59,16 @@ def clean(rows, columns):
         except (TypeError, ValueError):
             rating = None
         if rating is not None:
-            rating = min(max(rating, 0.0), 5.0)
+            if math.isnan(rating) or math.isinf(rating):
+                rating = None
+            else:
+                rating = min(max(rating, 0.0), 5.0)
         reviews = row.get("review_count")
         try:
             reviews = int(reviews) if reviews is not None and str(reviews).strip() != "" else None
         except (TypeError, ValueError):
+            reviews = None
+        if reviews is not None and (not isinstance(reviews, int) or math.isnan(float(reviews)) or math.isinf(float(reviews))):
             reviews = None
         profile = str(row.get("profile_url") or "").strip()
         if profile and not VALID_URL.match(profile):

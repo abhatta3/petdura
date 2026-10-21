@@ -7,3 +7,4 @@ data/rover_ca_sitters.tsv
 data/other_sitters.tsv
 data/yelp_oc.tsv
 data/craigslist_oc.tsv
+data/yp_adapter.tsv

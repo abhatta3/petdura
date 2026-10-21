@@ -1,7 +1,0 @@
-listing_id	source	provider_name	zip_code	city	state	service_type	description	price_usd	price_unit	rating	review_count	profile_url
-
-yelp-oc-001	Yelp	Paws & Claws OC	92694	Irvine	CA	Dog Walking	Reliable dog walking and pet sitting in Irvine. Insured, experienced with all breeds.	25	walk	4.6	42	https://www.yelp.com/biz/paws-and-claws-irvine
-yelp-oc-002	Yelp	Calm Paws Care	92101	San Diego	CA	Boarding	Quiet home boarding for small and medium dogs. Personalized attention, no crates.	65	night	4.8	28	https://www.yelp.com/biz/calm-paws-care-san-diego
-yelp-oc-003	Yelp	Happy Tails OC	90210	Beverly Hills	CA	House Sitting	House sitting with dog walking included. References available, full-time pet care.	85	night	4.9	56	https://www.yelp.com/biz/happy-tails-oc-bh
-yelp-oc-004	Yelp	Furry Friends Walkers	92602	Irvine	CA	Drop-In Visits	Drop-in visits and feeding for cats/dogs in Orange County. Flexible hours.	30	visit	4.5	19	https://www.yelp.com/biz/furry-friends-irvine
-yelp-oc-005	Yelp	Sunset Dog Daycare	92618	Irvine	CA	Doggy Day Care	Daycare with supervised playgroups, training add-ons, and photo updates.	35	day	4.7	63	https://www.yelp.com/biz/sunset-dog-daycare-irvine

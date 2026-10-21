@@ -187,20 +187,35 @@ function renderCard(row) {
 
   return `
     <article class="result-card">
-      <div class="result-topline">
-        <span class="service-pill">${escapeHtml(row.service_type)}</span>
-        <span class="source">${escapeHtml(row.source)}</span>
+      <div class="card-top">
+        <div class="result-topline">
+          <span class="service-pill">${escapeHtml(row.service_type)}</span>
+          <span class="source">${escapeHtml(row.source)}</span>
+        </div>
+        <h3>${escapeHtml(row.provider_name)}</h3>
+        <p class="location">${escapeHtml(row.city)}, ${escapeHtml(row.state)} ${escapeHtml(row.zip_code)}</p>
       </div>
-      <h3>${escapeHtml(row.provider_name)}</h3>
-      <p class="location">${escapeHtml(row.city)}, ${escapeHtml(row.state)} ${escapeHtml(row.zip_code)}</p>
-      <p>${escapeHtml(row.description)}</p>
-      <p class="pet-types">Pets: ${escapeHtml(row.pet_types)}</p>
-      <div class="result-footer">
-        <div><strong>${rate}</strong><span>${rating}</span></div>
-        ${profileLink}
+      <div class="card-body">
+        <p class="result-description">${escapeHtml(row.description || "No description provided.")}</p>
+        <div class="expanded-details">
+          <p class="pet-types">Pets: ${escapeHtml(row.pet_types || "Not listed")}</p>
+          ${profileLink ? `<div class="profile">${profileLink}</div>` : ""}
+        </div>
+      </div>
+      <div class="card-footer">
+        <div><strong>${rate}</strong> <span>${rating}</span></div>
+        <button class="expand-btn" type="button" aria-expanded="false" onclick="toggleCard(this)">Details</button>
       </div>
     </article>`;
 }
+
+window.toggleCard = function(button) {
+  const card = button.closest(".result-card");
+  if (!card) return;
+  const expanded = card.classList.toggle("expanded");
+  button.setAttribute("aria-expanded", expanded ? "true" : "false");
+  button.textContent = expanded ? "Less" : "Details";
+};
 
 function formatNumber(value) {
   return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });

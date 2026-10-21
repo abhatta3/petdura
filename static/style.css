@@ -134,10 +134,13 @@ h1 {
 }
 
 .filters {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   padding: 16px;
   border: 1px dashed var(--line);
   border-radius: 12px;
   background: color-mix(in srgb, var(--canvas) 60%, transparent);
+  gap: 12px;
 }
 
 .filters-title {
@@ -151,7 +154,7 @@ h1 {
 
 .filter-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
 }
 

@@ -10,6 +10,7 @@ const controlsPanel = document.getElementById("controls-panel");
 const serviceFilter = document.getElementById("service-filter");
 const maxPriceFilter = document.getElementById("max-price-filter");
 const sortBy = document.getElementById("sort-by");
+const providerFilter = document.getElementById("provider-filter");
 const resultsPanel = document.getElementById("results-panel");
 const resultsTitle = document.getElementById("results-title");
 const resultsCount = document.getElementById("results-count");
@@ -30,6 +31,7 @@ maxPriceFilter.addEventListener("input", () => {
   priceDebounce = setTimeout(() => runSearch(), 350);
 });
 sortBy.addEventListener("change", renderResults);
+providerFilter.addEventListener("change", renderResults);
 zipLimitSelect.addEventListener("change", renderZipTable);
 
 tabSearch.addEventListener("click", () => switchTab("search"));
@@ -102,6 +104,7 @@ window.searchZip = function(zipCode) {
   zipInput.value = zipCode;
   serviceFilter.value = "";
   maxPriceFilter.value = "";
+  providerFilter.value = "";
   sortBy.value = "relevance";
   switchTab("search");
   runSearch();
@@ -136,6 +139,7 @@ async function runSearch(event) {
       ? `${serviceType} in ${zipCode}`
       : `Services in ${zipCode}`;
     controlsPanel.classList.remove("hidden");
+    buildProviderFilter(allResults);
     renderResults();
     statusMessage.textContent = allResults.length
       ? ""
@@ -150,9 +154,30 @@ async function runSearch(event) {
   }
 }
 
+function buildProviderFilter(results) {
+  const current = providerFilter.value;
+  const byName = new Map();
+  for (const row of results) {
+    const name = row.provider_name || "";
+    if (!name) continue;
+    if (!byName.has(name)) byName.set(name, row.source || "");
+  }
+  const names = [...byName.keys()].sort((a, b) => a.localeCompare(b));
+  providerFilter.innerHTML = '<option value="">All providers</option>' + names.map(name => {
+    const source = byName.get(name);
+    const label = source ? `${name} (${source})` : name;
+    return `<option value="${escapeAttr(name)}">${escapeHtml(label)}</option>`;
+  }).join("");
+  providerFilter.disabled = names.length === 0;
+  if (names.includes(current)) providerFilter.value = current;
+  else providerFilter.value = "";
+}
+
 function renderResults() {
-  const sorted = [...allResults];
-  sorted.sort((a, b) => compareRows(a, b, sortBy.value));
+  const selectedProvider = providerFilter.value;
+  const sorted = allResults
+    .filter(row => !selectedProvider || row.provider_name === selectedProvider)
+    .sort((a, b) => compareRows(a, b, sortBy.value));
   resultsCount.textContent = `${sorted.length} ${sorted.length === 1 ? "listing" : "listings"}`;
   resultsPanel.innerHTML = sorted.map(renderCard).join("");
 }

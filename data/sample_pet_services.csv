@@ -1,0 +1,16 @@
+listing_id,source,provider_name,zip_code,city,state,service_type,pet_types,price_usd,price_unit,rating,review_count,description,profile_url,collected_at
+sample-001,Synthetic fixture,Sample Provider 01,92101,San Diego,CA,Dog Walking,Dogs,24,per walk,4.9,42,Patient weekday walks for large dogs and anxious dogs,,2026-10-07
+sample-002,Synthetic fixture,Sample Provider 01,92101,San Diego,CA,Drop-In Visits,Dogs and cats,22,per visit,4.9,42,Medication meals and play during drop-in visits,,2026-10-07
+sample-003,Synthetic fixture,Sample Provider 02,92101,San Diego,CA,House Sitting,Dogs and cats,78,per night,4.8,19,Overnight care for senior pets with medication routines,,2026-10-07
+sample-004,Synthetic fixture,Sample Provider 03,92101,San Diego,CA,Doggy Day Care,Dogs,45,per day,5.0,11,Small-group daytime care with a fenced yard,,2026-10-07
+sample-005,Synthetic fixture,Sample Provider 04,92101,San Diego,CA,Drop-In Visits,Cats,20,per visit,4.7,31,Quiet cat care including litter meals and play,,2026-10-07
+sample-006,Synthetic fixture,Sample Provider 05,92037,La Jolla,CA,Boarding,Dogs,65,per night,4.9,67,Home boarding near the coast for small and medium dogs,,2026-10-07
+sample-007,Synthetic fixture,Sample Provider 06,92130,San Diego,CA,Dog Walking,Dogs,28,per walk,4.8,54,Structured walks for energetic and large dogs,,2026-10-07
+sample-008,Synthetic fixture,Sample Provider 07,92660,Newport Beach,CA,House Sitting,Dogs and cats,92,per night,5.0,23,In-home overnight care for multiple pets,,2026-10-07
+sample-009,Synthetic fixture,Sample Provider 08,93401,San Luis Obispo,CA,Dog Walking,Dogs,23,per walk,4.6,38,Trail walks and neighborhood walks for active dogs,,2026-10-07
+sample-010,Synthetic fixture,Sample Provider 09,94107,San Francisco,CA,Drop-In Visits,Cats,30,per visit,4.9,106,Cat visits for shy cats and medication support,,2026-10-07
+sample-011,Synthetic fixture,Sample Provider 10,95014,Cupertino,CA,Boarding,Dogs and cats,72,per night,4.8,74,Calm home boarding with senior pet experience,,2026-10-07
+sample-012,Synthetic fixture,Sample Provider 11,95014,Cupertino,CA,Dog Training,Dogs,85,per session,4.9,29,Positive reinforcement training for puppies and reactive dogs,,2026-10-07
+sample-013,Synthetic fixture,Sample Provider 12,92694,Mission Viejo,CA,Dog Walking,Dogs,26,per walk,4.9,18,Neighborhood walks and exercise for energetic dogs,,2026-10-07
+sample-014,Synthetic fixture,Sample Provider 13,92694,Mission Viejo,CA,Pet Grooming,Dogs and cats,60,per groom,4.8,34,Full-service grooming spa and coat styling,,2026-10-07
+sample-015,Synthetic fixture,Sample Provider 14,92694,Mission Viejo,CA,Veterinary Care,Dogs and cats,150,per visit,5.0,45,Routine wellness exams vaccinations and urgent care,,2026-10-07

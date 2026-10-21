@@ -1,6 +1,5 @@
 let allResults = [];
 let catalogData = null;
-let priceDebounce = null;
 
 const searchForm = document.getElementById("search-form");
 const zipInput = document.getElementById("zip-input");
@@ -8,9 +7,7 @@ const searchBtn = document.getElementById("search-btn");
 const catalogSummary = document.getElementById("catalog-summary");
 const controlsPanel = document.getElementById("controls-panel");
 const serviceFilter = document.getElementById("service-filter");
-const maxPriceFilter = document.getElementById("max-price-filter");
 const sortBy = document.getElementById("sort-by");
-const providerFilter = document.getElementById("provider-filter");
 const resultsPanel = document.getElementById("results-panel");
 const resultsTitle = document.getElementById("results-title");
 const resultsCount = document.getElementById("results-count");
@@ -25,13 +22,8 @@ const zipCountBadge = document.getElementById("zip-count-badge");
 const zipLimitSelect = document.getElementById("zip-limit-select");
 
 searchForm.addEventListener("submit", runSearch);
-serviceFilter.addEventListener("change", () => runSearch());
-maxPriceFilter.addEventListener("input", () => {
-  clearTimeout(priceDebounce);
-  priceDebounce = setTimeout(() => runSearch(), 350);
-});
+serviceFilter.addEventListener("change", runSearch);
 sortBy.addEventListener("change", renderResults);
-providerFilter.addEventListener("change", renderResults);
 zipLimitSelect.addEventListener("change", renderZipTable);
 
 tabSearch.addEventListener("click", () => switchTab("search"));
@@ -103,8 +95,6 @@ function renderZipTable() {
 window.searchZip = function(zipCode) {
   zipInput.value = zipCode;
   serviceFilter.value = "";
-  maxPriceFilter.value = "";
-  providerFilter.value = "";
   sortBy.value = "relevance";
   switchTab("search");
   runSearch();
@@ -116,7 +106,6 @@ async function runSearch(event) {
 
   const zipCode = zipInput.value.trim();
   const serviceType = serviceFilter.value.trim();
-  const maxPriceRaw = maxPriceFilter.value.trim();
 
   searchBtn.disabled = true;
   statusMessage.textContent = "Searching the local catalog…";
@@ -124,7 +113,6 @@ async function runSearch(event) {
   try {
     const payload = { zip_code: zipCode };
     if (serviceType) payload.service_type = serviceType;
-    if (maxPriceRaw !== "") payload.max_price = maxPriceRaw;
 
     const response = await fetch("/api/search", {
       method: "POST",
@@ -139,7 +127,6 @@ async function runSearch(event) {
       ? `${serviceType} in ${zipCode}`
       : `Services in ${zipCode}`;
     controlsPanel.classList.remove("hidden");
-    buildProviderFilter(allResults);
     renderResults();
     statusMessage.textContent = allResults.length
       ? ""
@@ -154,30 +141,9 @@ async function runSearch(event) {
   }
 }
 
-function buildProviderFilter(results) {
-  const current = providerFilter.value;
-  const byName = new Map();
-  for (const row of results) {
-    const name = row.provider_name || "";
-    if (!name) continue;
-    if (!byName.has(name)) byName.set(name, row.source || "");
-  }
-  const names = [...byName.keys()].sort((a, b) => a.localeCompare(b));
-  providerFilter.innerHTML = '<option value="">All providers</option>' + names.map(name => {
-    const source = byName.get(name);
-    const label = source ? `${name} (${source})` : name;
-    return `<option value="${escapeAttr(name)}">${escapeHtml(label)}</option>`;
-  }).join("");
-  providerFilter.disabled = names.length === 0;
-  if (names.includes(current)) providerFilter.value = current;
-  else providerFilter.value = "";
-}
-
 function renderResults() {
-  const selectedProvider = providerFilter.value;
-  const sorted = allResults
-    .filter(row => !selectedProvider || row.provider_name === selectedProvider)
-    .sort((a, b) => compareRows(a, b, sortBy.value));
+  const sorted = [...allResults];
+  sorted.sort((a, b) => compareRows(a, b, sortBy.value));
   resultsCount.textContent = `${sorted.length} ${sorted.length === 1 ? "listing" : "listings"}`;
   resultsPanel.innerHTML = sorted.map(renderCard).join("");
 }
@@ -201,7 +167,7 @@ function numberAscending(a, b) {
 
 function renderCard(row) {
   const profileLink = row.profile_url
-    ? `<a href="${escapeAttr(row.profile_url)}" target="_blank" rel="noopener noreferrer">Contact</a>`
+    ? `<a class="contact-link" href="${escapeAttr(row.profile_url)}" target="_blank" rel="noopener noreferrer">Contact</a>`
     : "";
   const rating = row.rating === null
     ? "Not rated"
@@ -219,7 +185,7 @@ function renderCard(row) {
         </div>
         <div class="provider-row">
           <h3>${escapeHtml(row.provider_name)}</h3>
-          ${profileLink ? `<a class="contact-link" href="${escapeAttr(row.profile_url)}" target="_blank" rel="noopener noreferrer">Contact</a>` : ""}
+          ${profileLink}
         </div>
         <p class="location">${escapeHtml(row.city)}, ${escapeHtml(row.state)} ${escapeHtml(row.zip_code)}</p>
       </div>

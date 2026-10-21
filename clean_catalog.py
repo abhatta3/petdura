@@ -14,12 +14,20 @@ Usage:
 import argparse
 import csv
 import re
+import urllib.parse
 from pathlib import Path
 
 import duckdb
 
 DESC_MAX = 160
-EXCLUDED_SOURCES = {"Yelp", "OtherPlatform"}
+EXCLUDED_SOURCES = {"OtherPlatform", "Craigslist", "Facebook Marketplace"}
+
+
+def yelp_search_url(provider, city, state, zip_code):
+    """Yelp business pages require a real slug; a search URL always resolves."""
+    query = urllib.parse.quote_plus(provider or "Pet care")
+    location = urllib.parse.quote_plus(f"{city}, {state} {zip_code}")
+    return f"https://www.yelp.com/search?find_desc={query}&find_loc={location}"
 RETAIL_NOISE = re.compile(
     r"(?i)\b(for sale|antique|stroller|motorcycle|vacating|trailer|tractor|"
     r"furniture|appliance|iphone|laptop|refrigerator)\b"
@@ -65,6 +73,8 @@ def clean(rows, columns):
         profile = str(row.get("profile_url") or "").strip()
         if profile and not VALID_URL.match(profile):
             profile = ""
+        if source == "Yelp":
+            profile = yelp_search_url(provider, row.get("city"), row.get("state"), zip_code)
         row = dict(row)
         row.update({
             "listing_id": listing_id,

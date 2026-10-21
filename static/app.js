@@ -176,7 +176,7 @@ function numberAscending(a, b) {
 
 function renderCard(row) {
   const profileLink = row.profile_url
-    ? `<a href="${escapeAttr(row.profile_url)}" target="_blank" rel="noopener noreferrer">View source</a>`
+    ? `<a href="${escapeAttr(row.profile_url)}" target="_blank" rel="noopener noreferrer">Contact</a>`
     : "";
   const rating = row.rating === null
     ? "Not rated"

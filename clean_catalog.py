@@ -28,6 +28,7 @@ RETAIL_NOISE = re.compile(
     r"furniture|appliance|iphone|laptop|refrigerator)\b"
 )
 VALID_URL = re.compile(r"^https?://[^\s]+$", re.IGNORECASE)
+KEEP_UNLINKED = False  # drop listings without a valid profile URL
 
 
 def clean(rows, columns):
@@ -38,6 +39,9 @@ def clean(rows, columns):
             continue
         source = str(row.get("source") or "").strip()
         if source in EXCLUDED_SOURCES:
+            continue
+        # Drop synthetic Rover seed/demo entries (rover.com 404 links)
+        if source == "Rover" and re.search(r"rover-[a-z]{2,3}-\d+", listing_id):
             continue
         provider = re.sub(r"\s+", " ", str(row.get("provider_name") or "")).strip()
         description = re.sub(r"\s+", " ", str(row.get("description") or "")).strip()
@@ -73,6 +77,14 @@ def clean(rows, columns):
         profile = str(row.get("profile_url") or "").strip()
         if profile and not VALID_URL.match(profile):
             profile = ""
+        # Drop non-pet / boarding-house / lodging listings from YellowPages/other sources
+        combined_text = (provider + " " + (description or "") + " " + str(row.get("service_type") or "")).lower()
+        reject_words = ("boarding houses", "lodging", "residential life", "apartment", "housing office", "office of residential", "college life", "student services", "student housing", "room and boarding home")
+        if any(r in combined_text for r in reject_words):
+            continue  # skip this record
+        # Drop listings we cannot link to (no valid contact URL)
+        if not profile and not KEEP_UNLINKED:
+            continue
         row = dict(row)
         row.update({
             "listing_id": listing_id,

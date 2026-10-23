@@ -83,31 +83,40 @@ function buildSourceFilter(sources) {
 
 function renderZipTable() {
   if (!catalogData || !catalogData.zip_codes) return;
-  let zips = [...catalogData.zip_codes];
-  zips.sort((a, b) => String(a.zip_code).localeCompare(String(b.zip_code)));
+  let rows = [...catalogData.zip_codes];
+  // Already ordered by server; just slice for limit
   const limitVal = zipLimitSelect.value;
-  const totalCount = zips.length;
+  const totalCount = rows.length;
   if (limitVal !== "all") {
     const limitNum = parseInt(limitVal, 10) || 100;
-    zips = zips.slice(0, limitNum);
+    rows = rows.slice(0, limitNum);
   }
-  zipCountBadge.textContent = `Showing ${zips.length} of ${totalCount} ZIP codes`;
-  zipTbody.innerHTML = zips.map(row => `
-    <tr>
-      <td><strong>${escapeHtml(row.zip_code)}</strong></td>
-      <td>${escapeHtml(row.city)}</td>
-      <td>${escapeHtml(row.state)}</td>
-      <td>${escapeHtml(row.listing_count)}</td>
-      <td>${escapeHtml(row.services)}</td>
-      <td><button class="action-link" type="button" onclick="searchZip('${escapeAttr(row.zip_code)}')">View Services</button></td>
-    </tr>
-  `).join("");
+  zipCountBadge.textContent = `Showing ${rows.length} of ${totalCount} ZIP + Provider rows`;
+  zipTbody.innerHTML = rows.map(row => {
+    const provider = row.provider || "Unknown";
+    const count = row.count || 0;
+    const zip = row.zip_code || "";
+    return `<tr onclick="searchZipSource('${escapeAttr(zip)}', '${escapeAttr(provider)}')" style="cursor:pointer">
+      <td><strong>${escapeHtml(zip)}</strong></td>
+      <td>${escapeHtml(row.address || "")}</td>
+      <td>${escapeHtml(provider)}</td>
+      <td>${count}</td>
+    </tr>`;
+  }).join("");
 }
 
 window.searchZip = function(zipCode) {
   zipInput.value = zipCode;
   serviceFilter.value = "";
   sourceFilter.value = "";
+  sortBy.value = "relevance";
+  switchTab("search");
+  runSearch();
+};
+window.searchZipSource = function(zipCode, sourceName) {
+  zipInput.value = zipCode;
+  serviceFilter.value = "";
+  sourceFilter.value = sourceName;
   sortBy.value = "relevance";
   switchTab("search");
   runSearch();

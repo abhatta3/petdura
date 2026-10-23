@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import re
 from flask import Flask, jsonify, request, send_from_directory
 
 from catalog import CatalogError, PetServiceCatalog, json_safe
@@ -66,22 +67,26 @@ def create_app(catalog_path=None):
             try:
                 parquet_str = str(service_catalog.catalog_path)
                 df = conn.execute(
-                    """
-                    SELECT zip_code, city, state, count(*) as listing_count,
-                           string_agg(DISTINCT service_type, ', ') as services
-                    FROM read_parquet(?)
-                    GROUP BY zip_code, city, state
-                    ORDER BY zip_code
-                    """,
-                    [parquet_str],
+                    "SELECT zip_code, (city || ', ' || state) as address, source, count(*) as count, string_agg(DISTINCT service_type, ', ') as services FROM read_parquet(?) GROUP BY zip_code, city, state, source ORDER BY zip_code, source",
+                    [parquet_str]
                 ).fetchdf()
-                summary["zip_codes"] = df.to_dict(orient="records")
+                df = df.rename(columns={"source":"provider","count":"count"})
+                # Drop separate city/state; keep combined address and provider/count
+                for _, row in df.iterrows():
+                    pass  # row objects already have correct fields
+                # Build clean flat dict
+                clean = []
+                for _, row in df.iterrows():
+                    adr = str(row.get("address") or "").replace(", CA , CA", ", CA").replace(", CA ", ", ").strip(", ")
+                    clean.append({"zip_code": str(row.get("zip_code") or ""), "address": adr, "provider": str(row.get("provider") or ""), "count": int(row.get("count") or 0)})
+                summary["zip_codes"] = clean
             finally:
                 conn.close()
             summary["service_types"] = service_catalog.service_types()
             summary["sources"] = service_catalog.sources()
             return jsonify(json_safe(summary))
         except CatalogError as exc:
+            return jsonify({"error": str(exc)}), 503
             return jsonify({"error": str(exc)}), 503
 
     @application.route("/api/search", methods=["POST"])

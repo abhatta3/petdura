@@ -67,18 +67,31 @@ def create_app(catalog_path=None):
             try:
                 parquet_str = str(service_catalog.catalog_path)
                 df = conn.execute(
-                    "SELECT zip_code, (city || ', ' || state) as address, source, count(*) as count, string_agg(DISTINCT service_type, ', ') as services FROM read_parquet(?) GROUP BY zip_code, city, state, source ORDER BY zip_code, source",
+                    "SELECT zip_code, MIN(COALESCE(city,'') || ', ' || COALESCE(state,'')) as address, source, count(*) as count, string_agg(DISTINCT service_type, ', ') as services FROM read_parquet(?) GROUP BY zip_code, source ORDER BY zip_code, source",
                     [parquet_str]
                 ).fetchdf()
                 df = df.rename(columns={"source":"provider","count":"count"})
                 # Drop separate city/state; keep combined address and provider/count
                 for _, row in df.iterrows():
                     pass  # row objects already have correct fields
-                # Build clean flat dict
+                # Build clean flat dict (remove duplicate zip in address, normalize)
                 clean = []
+                seen = set()
                 for _, row in df.iterrows():
-                    adr = str(row.get("address") or "").replace(", CA , CA", ", CA").replace(", CA ", ", ").strip(", ")
-                    clean.append({"zip_code": str(row.get("zip_code") or ""), "address": adr, "provider": str(row.get("provider") or ""), "count": int(row.get("count") or 0)})
+                    adr_raw = str(row.get("address") or "").strip()
+                    # Normalize: remove ZIP code from address to avoid duplication
+                    zip_in_adr = re.search(r'\b\d{5}\b', adr_raw)
+                    zip_code = str(row.get("zip_code") or "").strip()
+                    # Ensure address shows zip; avoid double-zip
+                    adr = adr_raw.replace(", CA , CA", ", CA").replace(", CA ", ", ").strip(", ")
+                    if zip_code and zip_code not in adr:
+                        adr = f"{adr}, {zip_code}".strip(", ")
+                    # Deduplicate by (zip_code, provider) — one row per zip/source
+                    key = (zip_code, str(row.get("provider") or ""))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    clean.append({"zip_code": zip_code, "address": adr, "provider": str(row.get("provider") or ""), "count": int(row.get("count") or 0)})
                 summary["zip_codes"] = clean
             finally:
                 conn.close()

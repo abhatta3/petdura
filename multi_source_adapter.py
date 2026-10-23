@@ -76,6 +76,11 @@ SOURCES = {
         "url_tmpl": "https://www.petbacker.com/search?query=pet%20services&location={zip}",
         "parser": "petbacker",
     },
+    "Petsit": {
+        "label": "Petsit",
+        "url_tmpl": "https://www.petsit.com/search-results?zip={zip}&country=US",
+        "parser": "petsit",
+    },
 }
 
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
@@ -83,7 +88,8 @@ UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
 
 FIELDS = ["listing_id", "source", "provider_name", "zip_code", "city", "state",
           "service_type", "description", "price_usd", "price_unit",
-          "rating", "review_count", "profile_url"]
+          "rating", "review_count", "profile_url", "pet_types",
+          "collected_at", "search_text"]
 
 
 def build_zip_lookup():
@@ -96,6 +102,16 @@ def build_zip_lookup():
 
 ZIP_LOOKUP = build_zip_lookup()
 
+
+def existing_profile_set(source_key):
+    try:
+        conn = duckdb.connect(":memory:")
+        p = str(PARQUET.resolve())
+        df = conn.execute(f"SELECT provider_name, profile_url FROM read_parquet('{p}') WHERE source = '{source_key}'").fetchdf()
+        conn.close()
+        return set(zip(df["provider_name"].fillna("").astype(str).str[:60], df["profile_url"].fillna("")))
+    except Exception:
+        return set()
 
 def load_checkpoint():
     if CHECKPOINT.exists():
@@ -357,6 +373,8 @@ def fetch_and_parse(source_key, service_slug, zip_code):
         rows = parse_petsitter(html_text, zip_code)
     elif parser_name == "petbacker":
         rows = parse_petbacker(html_text, zip_code)
+    elif parser_name == "petsit":
+        rows = parse_petsit(html_text, zip_code)
     else:
         rows = []
     city, state = ZIP_LOOKUP.get(zip_code, ("", ""))
@@ -368,6 +386,10 @@ def fetch_and_parse(source_key, service_slug, zip_code):
         if not r.get("state"):
             r["state"] = state
         r["service_type"] = service_label
+        # Fill parquet schema defaults (ETL alignment)
+        r.setdefault("pet_types", "")
+        r.setdefault("collected_at", "")
+        r.setdefault("search_text", "")
     return rows
 
 
@@ -426,6 +448,13 @@ def main():
                     continue
                 try:
                     rows = fetch_and_parse(sk, slug, z)
+                    # Filter out duplicates (same provider + profile URL already in parquet) for Petsit
+                    if sk == "Petsit":
+                        existing_set = existing_profile_set(sk)
+                        before_filter = len(rows)
+                        rows = [r for r in rows if (r.get("provider_name", "")[:60], r.get("profile_url", "")) not in existing_set]
+                        if len(rows) < before_filter:
+                            print(f"  [DEDUP] skipped {before_filter - len(rows)} duplicates for Petsit {z}")
                     written = write_tsv(sk, rows)
                     total_new += written
                     load_checkpoint()[k] = "done"
@@ -441,6 +470,17 @@ def main():
     # Final source report
     sources_report = []
     for sk in sources:
+        # Pipeline: clean -> load (ETL fix)
+        file_key = sk.lower() + "_multi.tsv"
+        out_path = OUT_DIR / file_key
+        if out_path.exists() and out_path.stat().st_size > 0:
+            try:
+                import clean_catalog as cc
+                cc.main(input_path=str(out_path), parquet_path=str(PARQUET), source_filter=sk, keep_unlinked=False)
+                print(f"[CLEAN] {sk}: cleaned {file_key}")
+            except Exception as e:
+                print(f"[CLEAN SKIP] {sk}: {e}")
+        f = OUT_DIR / file_key
         f = OUT_DIR / f"{sk.lower()}_multi.tsv"
         n = sum(1 for _ in open(f, "r", encoding="utf-8")) - 1 if f.exists() else 0
         ok = "OK" if n >= MIN_SOURCE_LISTINGS else f"<{MIN_SOURCE_LISTINGS}"
@@ -464,9 +504,6 @@ def _prune_source(source_key):
         print(f"PRUNE ERROR {source_key}: {e}")
 
 
-if __name__ == "__main__":
-    main()
-
 def parse_pethotels(html, zip_code="92694"):
     """Basic parser for pethotels.com results."""
     rows = []
@@ -483,3 +520,94 @@ def parse_petbacker(html, zip_code="92694"):
     """Basic parser for petbacker.com results."""
     rows = []
     return rows
+
+def parse_petsit(html, zip_code="92694"):
+    """Parse Petsit.com search results."""
+    rows = []
+    # Extract article blocks
+    article_blocks = re.findall(r'<article class="listitem profile[^"]*"[^>]*>(.*?)</article>', html, re.DOTALL)
+    for art in article_blocks:
+        # Extract business name and profile URL
+        name_m = re.search(r'<h2><a href="([^"]+)"[^>]*>([^<]+)</a></h2>', art)
+        if not name_m:
+            continue
+        profile_path = name_m.group(1)
+        business_name = name_m.group(2).strip()
+        
+        # Extract description (first paragraph after header)
+        desc_m = re.search(r'<header>.*?</header>(.*?)<ul class="blocklist qualifications"', art, re.DOTALL)
+        description = desc_m.group(1).strip() if desc_m else ""
+        description = re.sub(r'<[^>]+>', ' ', description)  # strip HTML tags
+        description = re.sub(r'\s+', ' ', description)  # normalize whitespace
+        if len(description) > 300:
+            description = description[:297] + "..."
+        
+        # Extract zip from profile URL path (e.g., /pet-sitter-lawrenceville-ga-... -> LA)
+        # Or use ZIP_LOOKUP based on zip_code parameter
+        city, state = ZIP_LOOKUP.get(zip_code, ("", ""))
+        # Extract city/state from URL path (e.g., /pet-sitter-lawrenceville-ga-... -> LA)
+        url_path = profile_path.split('/')[-1]  # last part after domain
+        # Extract city and state from URL (simple approach: look for city name and state abbreviation)
+        # This is simplified; real implementation might need more robust parsing
+        # For now, use the ZIP_LOOKUP city/state as fallback
+        
+        # Create listing_id based on profile URL to ensure uniqueness
+        listing_id = f"petsit-{hash(profile_path)}"
+        
+        # Derive real city/state from profile URL slug (e.g., jersey-city-nj, elbert-co)
+        url_slug = profile_path.split('/')[-1] if '/' in profile_path else profile_path
+        # Remove business name suffix by splitting on last known city/state pattern
+        slug_parts = url_slug.split('-')
+        # Find state abbreviation (2 letters) appearing near end of slug
+        state_look = ""
+        for i in range(len(slug_parts)-1, -1, -1):
+            if len(slug_parts[i]) == 2 and slug_parts[i].lower() in [
+                'ca','ny','tx','fl','il','pa','oh','ga','nc','mi','nj','va','wa','az','ma','md','co',
+                'mn','sc','al','la','ky','or','ok','ct','ut','ia','nv','ar','ms','nm','ks','ne','wv',
+                'id','hi','nh','me','mt','ri','de','sd','nd','ak','vt','wy','nj','ct','de','md','dc'
+            ]:
+                state_look = slug_parts[i].upper()
+                # City is everything before state and after prefix
+                city_part = '-'.join(slug_parts[i-1::-1] if i > 0 else [])[:60].replace('-', ' ').title()
+                # Better approach: take parts before last 2-letter state
+                city_raw = '-'.join(slug_parts[:i])
+                # Remove leading business keywords like pet-sitter, pet-sitter- etc.
+                city_raw = city_raw.replace('pet-sitter-', '').replace('pet-sitter', '').strip('-')
+                address_city = city_raw.replace('-', ' ').title()[:40]
+                break
+        else:
+            address_city = ZIP_LOOKUP.get(zip_code, ("", ""))[0]
+            state_look = ZIP_LOOKUP.get(zip_code, ("", ""))[1]
+        lookup_city, lookup_state = ZIP_LOOKUP.get(zip_code, ("", ""))
+        # Overwrite adapter defaults with URL-derived location
+        city = state_look and address_city or lookup_city
+        state = state_look or lookup_state
+        
+        # Data quality: skip Petsit listings whose profile URL indicates a different state
+        # than the search ZIP (prevents NJ listings showing under CA 90001)
+        if state_look and lookup_state and state_look != lookup_state:
+            continue
+        # Overwrite adapter defaults with URL-derived location
+        city = state_look and address_city or lookup_city
+        state = state_look or lookup_state
+        
+        rows.append({
+            "listing_id": listing_id,
+            "source": "Petsit",
+            "provider_name": business_name[:60],
+            "zip_code": zip_code,
+            "city": city,
+            "state": state,
+            "service_type": "Pet Sitting & Exercising Servi",
+            "description": description,
+            "price_usd": "",
+            "price_unit": "visit",
+            "rating": "",
+            "review_count": "0",
+            "profile_url": f"https://www.petsit.com{profile_path}",
+        })
+    return rows
+
+if __name__ == "__main__":
+    main()
+

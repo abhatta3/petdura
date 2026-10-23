@@ -11,6 +11,19 @@ changing the web application.
 The included records are synthetic. The project does not scrape provider
 websites; use only feeds, exports, or records you are authorized to store.
 
+## Catalog cleaning method (`clean_catalog.py`)
+
+The pipeline applies these filters to all incoming TSV rows before parquet load:
+
+1. **Synthetic seed exclusion** — drops any `listing_id` matching `rover-[a-z]{2,3}-\d+` (fake seed entries with broken links)
+2. **Pet-only reject filter** — drops listings whose `name + category` contain reject words (`boarding houses`, `child care`, `school`, `restaurant`, `agency`, `apartment`, etc.) and requires at least one pet keyword (`dog`, `cat`, `pet`, `sitter`, `boarding`, `walk`, `groom`, `kennel`)
+3. **NaN guard** — replaces `NaN` / `null` in `price_usd` with empty string so JSON serialization never writes `NaN`
+4. **Empty URL drop** (`KEEP_UNLINKED=False`) — drops rows with missing or blank `profile_url`
+5. **ZIP validation** — keeps only `\d{5}` valid ZIP codes (no malformed locality strings)
+6. **Duplicate removal** — adapter checks parquet `provider_name + profile_url`; `clean_catalog` validates uniqueness by `listing_id`
+
+Cleaned output feeds `merge_watcher.py` (threshold `MIN_SOURCE_LISTINGS=100`) which builds `data/pet_services.parquet` via `UNION ALL`.
+
 ## Quick start
 
 ```bash

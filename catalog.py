@@ -17,21 +17,28 @@ STOPWORDS = {
 
 
 def json_safe(value):
-    """Convert NaN/Infinity floats to None so payloads stay valid JSON.
-
-    Python's json module happily emits ``NaN``/``Infinity`` literals, but those
-    are not valid JSON and break ``JSON.parse`` in the browser. DuckDB can also
-    surface NaN values coming from imperfect source data, so every record that
-    leaves the catalog is normalized here.
-    """
-    if isinstance(value, float):
-        if math.isnan(value) or math.isinf(value):
-            return None
-        return value
+    """Convert NaN/Infinity floats to None so payloads stay valid JSON."""
     if isinstance(value, dict):
         return {key: json_safe(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
         return [json_safe(item) for item in value]
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+        return value
+    try:
+        import pandas as pd
+        import numpy as np
+        if isinstance(value, (np.ndarray, list, tuple, dict)):
+            pass  # handled by recursive branch above
+        elif isinstance(value, pd.Timestamp):
+            return str(value) if pd.notna(value) else None
+        elif hasattr(value, '__len__') and len(value) > 1:
+            pass  # array-like, skip scalar NaN check
+        elif pd.isna(value) and not isinstance(value, (str, bool, int, float, list, dict, type(None))):
+            return None
+    except Exception:
+        pass
     return value
 
 

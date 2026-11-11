@@ -160,6 +160,9 @@ def parse_yp(html, zip_code="92694"):
         has_pet = any(k in combined_text for k in pet_keywords)
         # Reject clearly non-pet categories (child care, education, lodging, games, agencies, ...)
         reject_words = [
+            "ups drop box", "fedex drop box", "drop box", "mail & shipping", "shipping services",
+            "chinatown ymca", "dogbyte development", "made in heaven tcups", "uniform supply",
+            "fabrics", "hand painting", "laundromats", "dry cleaners", "container freight",
             "boarding houses", "lodging", "residential life", "apartment", "housing office",
             "office of residential", "college life", "student services", "student housing",
             "rooming houses", "hostels", "vacation homes", "vacation rentals", "seeking roommate",

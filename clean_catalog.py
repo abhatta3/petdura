@@ -79,6 +79,10 @@ def clean(rows, columns):
             profile = ""
         # Drop non-pet / boarding-house / lodging listings from YellowPages/other sources
         combined_text = (provider + " " + (description or "") + " " + str(row.get("service_type") or "")).lower()
+        # Drop shipping boxes, non-pet services, community orgs
+        non_pet_noise = re.compile(r"(?i)\b(ups drop box|fedex drop box|chinatown ymca|dogbyte development|made in heaven tcups|mail & shipping services|uniform supply service|fabrics|hand painting|laundromats|dry cleaners)\b")
+        if non_pet_noise.search(provider + " " + description):
+            continue
         reject_words = ("boarding houses", "lodging", "residential life", "apartment", "housing office", "office of residential", "college life", "student services", "student housing", "room and boarding home")
         if any(r in combined_text for r in reject_words):
             continue  # skip this record

@@ -1,0 +1,37 @@
+ * Serving Flask app 'app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5050
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [13/Nov/2026 15:31:46] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 15:31:46] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 15:31:46] "GET /style.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 15:31:46] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [13/Nov/2026 15:31:46] "GET /api/catalog HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 15:32:03] "POST /api/search HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 15:33:37] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 15:33:37] "[36mGET /style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Nov/2026 15:33:37] "[36mGET /app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Nov/2026 15:33:37] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [13/Nov/2026 15:33:37] "GET /api/catalog HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 15:33:39] "POST /api/search HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 15:35:12] "POST /api/auth/register HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 15:35:19] "POST /api/search HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 15:36:04] "POST /api/search HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 15:36:16] "POST /api/search HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 15:36:29] "[31m[1mPOST /api/auth/login HTTP/1.1[0m" 400 -
+127.0.0.1 - - [13/Nov/2026 15:36:42] "[31m[1mPOST /api/auth/login HTTP/1.1[0m" 400 -
+127.0.0.1 - - [13/Nov/2026 15:39:28] "POST /api/auth/login HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 15:39:28] "POST /api/search HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 16:22:45] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 16:22:45] "[36mGET /style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Nov/2026 16:22:45] "[36mGET /app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Nov/2026 16:22:45] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [13/Nov/2026 16:22:45] "POST /api/search HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 16:22:45] "GET /api/catalog HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 16:27:59] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 16:27:59] "[36mGET /style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Nov/2026 16:27:59] "[36mGET /app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Nov/2026 16:27:59] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [13/Nov/2026 16:27:59] "POST /api/search HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 16:27:59] "GET /api/catalog HTTP/1.1" 200 -
